@@ -1,0 +1,4 @@
+Revision history for Perl extension Plack::Middleware::Auth::OAuth
+
+0.01    Mon Apr 26 21:30:24 2010
+        - original version
