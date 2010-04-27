@@ -6,7 +6,7 @@ our $VERSION = '0.01';
 use parent qw(Plack::Middleware);
 
 use Plack::Request;
-use Plack::Util::Accessor qw(consumer_key consumer_secret);
+use Plack::Util::Accessor qw(consumer_key consumer_secret validate_post);
 
 use OAuth::Lite::Util qw(parse_auth_header);
 use OAuth::Lite::ServerUtil;
@@ -37,6 +37,11 @@ sub validate {
     return 0 unless $params->{oauth_consumer_key} eq $self->consumer_key;
 
     my $req = Plack::Request->new($env);
+    my $req_params
+        = $self->validate_post ? $req->parameters : $req->query_parameters;
+    for my $k ($req_params->keys) {
+        $params->{$k} = [$req_params->get($k)];
+    }
 
     return $util->verify_signature(
         method          => $req->method,
