@@ -70,15 +70,44 @@ __END__
 
 =head1 NAME
 
-Plack::Middleware::Auth::OAuth -
+Plack::Middleware::Auth::OAuth - OAuth signature validation middleware
 
 =head1 SYNOPSIS
 
-  use Plack::Middleware::Auth::OAuth;
+  use Plack::Builder;
+
+  my $app = sub { ...};
+
+  builder {
+      enable "Plack::Middleware::Auth::OAuth",
+          consumer_key => 'YOUR_CONSUMER_KEY',
+          consumer_secret => 'YOUR_CONSUMER_SECRET',
+          ;
+      $app; 
+  };
 
 =head1 DESCRIPTION
 
-Plack::Middleware::Auth::OAuth is
+Plack::Middleware::Auth::OAuth is OAuth signature validation handler for Plack.
+
+=head1 CONFIGURATION
+
+=over 4
+
+=item consumer_key
+
+Your application's consumer key.
+
+=item consumer_secret
+
+Your application's consumer secret.
+
+=item validate_post
+
+Includes body paramters in validation.  For MBGA-Town, you shoud use this 
+option.
+
+=back
 
 =head1 AUTHOR
 
