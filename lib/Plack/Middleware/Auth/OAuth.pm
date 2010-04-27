@@ -6,7 +6,13 @@ our $VERSION = '0.01';
 use parent qw(Plack::Middleware);
 
 use Plack::Request;
-use Plack::Util::Accessor qw(consumer_key consumer_secret validate_post);
+use Plack::Util::Accessor qw(
+    consumer_key
+    consumer_secret
+    validate_post
+    check_timestamp_cb
+    check_nonce_cb
+);
 
 use OAuth::Lite::Util qw(parse_auth_header);
 use OAuth::Lite::ServerUtil;
@@ -16,6 +22,14 @@ sub prepare_app {
 
     die 'requires consumer_key'    unless $self->consumer_key;
     die 'requires consumer_secret' unless $self->consumer_secret;
+
+    if ($self->check_nonce_cb && ref $self->check_nonce_cb ne 'CODE') {
+        die 'check_nonce_cb should be a code reference';
+    }
+    if ($self->check_timestamp_cb && ref $self->check_timestamp_cb ne 'CODE')
+    {
+        die 'check_timestamp_cb should be a code reference';
+    }
 }
 
 sub call {
@@ -27,14 +41,13 @@ sub call {
 sub validate {
     my ($self, $env) = @_;
 
-    my $auth = $env->{HTTP_AUTHORIZATION} or return 0;
+    my $auth = $env->{HTTP_AUTHORIZATION} or return;
 
     my ($realm, $params) = parse_auth_header($auth);
-    my $util = OAuth::Lite::ServerUtil->new(strict => 0);
-    $util->support_signature_method('HMAC-SHA1');
+    return unless $params->{oauth_consumer_key} eq $self->consumer_key;
 
-    return 0 unless $util->validate_params($params);
-    return 0 unless $params->{oauth_consumer_key} eq $self->consumer_key;
+    return if $self->check_timestamp_cb && !$self->check_timestamp_cb->($params);
+    return if $self->check_nonce_cb && !$self->check_nonce_cb->($params);
 
     my $req = Plack::Request->new($env);
     my $req_params
@@ -42,6 +55,10 @@ sub validate {
     for my $k ($req_params->keys) {
         $params->{$k} = [$req_params->get($k)];
     }
+
+    my $util = OAuth::Lite::ServerUtil->new(strict => 0);
+    $util->support_signature_method('HMAC-SHA1');
+    return unless $util->validate_params($params);
 
     return $util->verify_signature(
         method          => $req->method,
@@ -106,6 +123,14 @@ Your application's consumer secret.
 
 Includes body paramters in validation.  For MBGA-Town, you shoud use this 
 option.
+
+=item check_nonce_cb 
+
+A callback function to validate oauth_nonce.
+
+=item check_timestamp_cb 
+
+A callback function to validate oauth_timestamp.
 
 =back
 
