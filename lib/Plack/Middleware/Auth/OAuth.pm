@@ -121,7 +121,7 @@ Your application's consumer secret.
 
 =item validate_post
 
-Includes body paramters in validation.  For MBGA-Town, you shoud use this 
+Includes body parameters in validation.  For MBGA-Town, you should use this 
 option.
 
 =item check_nonce_cb 
