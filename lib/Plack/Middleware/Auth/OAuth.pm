@@ -53,7 +53,7 @@ sub validate {
     my $req_params
         = $self->validate_post ? $req->parameters : $req->query_parameters;
     for my $k ($req_params->keys) {
-        $params->{$k} = [$req_params->get($k)];
+        $params->{$k} = [$req_params->get_all($k)];
     }
 
     my $util = OAuth::Lite::ServerUtil->new(strict => 0);
