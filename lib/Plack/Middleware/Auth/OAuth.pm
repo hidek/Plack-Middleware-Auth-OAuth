@@ -1,7 +1,7 @@
 package Plack::Middleware::Auth::OAuth;
 use strict;
 use warnings;
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use parent qw(Plack::Middleware);
 
