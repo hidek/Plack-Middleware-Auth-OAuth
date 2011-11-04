@@ -12,6 +12,7 @@ use Plack::Util::Accessor qw(
     validate_post
     check_timestamp_cb
     check_nonce_cb
+    exclude_path
 );
 
 use OAuth::Lite::Util qw(parse_auth_header);
@@ -41,6 +42,17 @@ sub call {
 sub validate {
     my ($self, $env) = @_;
 
+    my $req = Plack::Request->new($env);
+    if (my $exclude_path = $self->exclude_path) {
+        my $ref = ref $exclude_path;
+        unless ($ref) {
+            return 1 if $req->uri->path eq $exclude_path;
+        }
+        elsif ($ref eq 'Regexp') {
+            return 1 if $req->uri->path =~ $exclude_path;
+        }
+    }
+
     my $auth = $env->{HTTP_AUTHORIZATION} or return;
 
     my ($realm, $params) = parse_auth_header($auth);
@@ -49,7 +61,6 @@ sub validate {
     return if $self->check_timestamp_cb && !$self->check_timestamp_cb->($params);
     return if $self->check_nonce_cb && !$self->check_nonce_cb->($params);
 
-    my $req = Plack::Request->new($env);
     my $req_params
         = $self->validate_post ? $req->parameters : $req->query_parameters;
     for my $k ($req_params->keys) {
@@ -131,6 +142,10 @@ A callback function to validate oauth_nonce.
 =item check_timestamp_cb 
 
 A callback function to validate oauth_timestamp.
+
+=item exclude_path
+
+A path (Regexp or String) excluded from validation.
 
 =back
 
