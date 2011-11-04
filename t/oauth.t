@@ -115,6 +115,95 @@ my $consumer = OAuth::Lite::Consumer->new(
     };
 }
 
+{
+    my $app = sub {
+        return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
+    };
+
+    $app = builder {
+        enable 'Plack::Middleware::Auth::OAuth',
+            'consumer_key'    => $args{consumer_key},
+            'consumer_secret' => $args{consumer_secret},
+            'exclude_path'    => qr!^/ping!,
+            ;
+        $app;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $req = $consumer->gen_oauth_request(
+            method => 'GET',
+            url    => 'http://localhost/',
+            params => \%params,
+        );
+        my $res = $cb->($req);
+        is $res->code,    200;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $res = $cb->(GET 'http://localhost/');
+        is $res->code,    401;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $res = $cb->(GET 'http://localhost/ping');
+        is $res->code,    200;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $res = $cb->(GET 'http://localhost/ping/pong');
+        is $res->code,    200;
+    };
+
+}
+
+{
+    my $app = sub {
+        return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
+    };
+
+    $app = builder {
+        enable 'Plack::Middleware::Auth::OAuth',
+            'consumer_key'    => $args{consumer_key},
+            'consumer_secret' => $args{consumer_secret},
+            'exclude_path'    => '/ping',
+            ;
+        $app;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $req = $consumer->gen_oauth_request(
+            method => 'GET',
+            url    => 'http://localhost/',
+            params => \%params,
+        );
+        my $res = $cb->($req);
+        is $res->code,    200;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $res = $cb->(GET 'http://localhost/');
+        is $res->code,    401;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $res = $cb->(GET 'http://localhost/ping');
+        is $res->code,    200;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $res = $cb->(GET 'http://localhost/ping/pong');
+        is $res->code,    401;
+    };
+
+}
 
 done_testing;
 
