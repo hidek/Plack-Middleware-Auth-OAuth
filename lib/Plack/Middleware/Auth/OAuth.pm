@@ -57,7 +57,7 @@ sub validate {
     }
 
     my $util = OAuth::Lite::ServerUtil->new(strict => 0);
-    $util->support_signature_method('HMAC-SHA1');
+    $util->support_signature_method($params->{oauth_signature_method});
     return unless $util->validate_params($params);
 
     return $util->verify_signature(
