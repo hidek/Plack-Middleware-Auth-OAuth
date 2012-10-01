@@ -1,7 +1,7 @@
 package Plack::Middleware::Auth::OAuth;
 use strict;
 use warnings;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use parent qw(Plack::Middleware);
 
@@ -137,6 +137,7 @@ A callback function to validate oauth_timestamp.
 =head1 AUTHOR
 
 Hideo Kimura E<lt>hide@cpan.orgE<gt>
+Masayuki Matsuki E<lt>songmu@cpan.orgE<gt>
 
 =head1 SEE ALSO
 
