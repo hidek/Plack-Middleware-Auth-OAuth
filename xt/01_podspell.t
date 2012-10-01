@@ -7,6 +7,8 @@ all_pod_files_spelling_ok('lib');
 __DATA__
 Hideo Kimura
 hide@cpan.org
+Masayuki Matsuki
+songmu@cpan.org
 Plack::Middleware::Auth::OAuth
 MBGA
 callback
