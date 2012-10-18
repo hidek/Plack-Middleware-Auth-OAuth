@@ -1,5 +1,8 @@
 Revision history for Perl extension Plack::Middleware::Auth::OAuth
 
+0.04    Thu Oct 18 05:56:12 2012
+        - assign psgix.oauth_realm and psgix.oauth_params into $env
+
 0.03    Mon Oct 01 15:26:48 2012
         - RSA-SHA1 support
 
