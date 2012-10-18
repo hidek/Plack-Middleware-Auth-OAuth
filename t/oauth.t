@@ -33,6 +33,11 @@ my $consumer = OAuth::Lite::Consumer->new(
 
 {
     my $app = sub {
+        my $env = shift;
+        ok defined $env->{'psgix.oauth_realm'};
+        ok $env->{'psgix.oauth_params'};
+        is $env->{'psgix.oauth_params'}{oauth_consumer_key}, $params{oauth_consumer_key};
+
         return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
     };
 
