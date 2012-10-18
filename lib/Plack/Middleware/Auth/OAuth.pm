@@ -44,8 +44,8 @@ sub validate {
     my $auth = $env->{HTTP_AUTHORIZATION} or return;
 
     my ($realm, $params) = parse_auth_header($auth);
-    $env->{psgix.oauth_realm}  = $realm;
-    $env->{psgix.oauth_params} = $params;
+    $env->{'psgix.oauth_realm'}  = $realm;
+    $env->{'psgix.oauth_params'} = $params;
 
     return unless $params->{oauth_consumer_key} eq $self->consumer_key;
 
