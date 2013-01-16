@@ -131,6 +131,8 @@ my $consumer = OAuth::Lite::Consumer->new(
             consumer_key    => $args{consumer_key},
             consumer_secret => $args{consumer_secret},
             unauthorized_cb => sub {
+                my $env = shift;
+                isa_ok $env, 'HASH';
                 my $body = 'forbidden';
                 return [
                     403,
