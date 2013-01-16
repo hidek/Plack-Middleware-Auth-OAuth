@@ -38,6 +38,7 @@ my $consumer = OAuth::Lite::Consumer->new(
         ok $env->{'psgix.oauth_params'};
         is $env->{'psgix.oauth_params'}{oauth_consumer_key}, $params{oauth_consumer_key};
 
+        ok $env->{'psgix.oauth_is_authorized'};
         return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
     };
 
