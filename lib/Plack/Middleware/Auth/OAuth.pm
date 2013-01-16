@@ -64,7 +64,7 @@ sub validate {
     $util->support_signature_method($params->{oauth_signature_method});
     return unless $util->validate_params($params);
 
-    $env->{'psgix.oauth_is_authorized'} = $util->verify_signature(
+    $env->{'psgix.oauth_authorized'} = $util->verify_signature(
         method          => $req->method,
         url             => $req->uri,
         params          => $params,
