@@ -146,6 +146,12 @@ A callback function to validate oauth_timestamp.
 
 A callback function (psgi application) for returning custom response when unauthorized.
 
+=item validate_only
+
+doing only validation. not returning response directly from middleware (unauthorized method not to be called).
+
+discriminating authorization is valid or not by seeing $env->{'psgix.oauth_authorized'} in your app.
+
 =back
 
 =head1 AUTHOR

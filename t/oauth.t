@@ -154,4 +154,57 @@ my $consumer = OAuth::Lite::Consumer->new(
     };
 }
 
+{
+    my $app = sub {
+        my $env = shift;
+        ok !$env->{'psgix.oauth_authorized'};
+        return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
+    };
+
+    $app = builder {
+        enable 'Plack::Middleware::Auth::OAuth',
+            consumer_key    => $args{consumer_key},
+            consumer_secret => $args{consumer_secret},
+            validate_only   => 1,
+        ;
+        $app;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $res = $cb->(GET 'http://localhost/');
+
+        is $res->code, 200;
+        is $res->content, 'Hello World';
+    };
+}
+
+{
+    my $app = sub {
+        my $env = shift;
+        ok $env->{'psgix.oauth_authorized'};
+        return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
+    };
+
+    $app = builder {
+        enable 'Plack::Middleware::Auth::OAuth',
+            consumer_key    => $args{consumer_key},
+            consumer_secret => $args{consumer_secret},
+            validate_only   => 1,
+        ;
+        $app;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $req = $consumer->gen_oauth_request(
+            method => 'GET',
+            url    => 'http://localhost/',
+            params => \%params,
+        );
+        my $res = $cb->($req);
+        is $res->code,    200;
+    };
+}
+
 done_testing;
