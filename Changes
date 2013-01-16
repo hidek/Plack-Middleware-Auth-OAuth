@@ -1,5 +1,10 @@
 Revision history for Perl extension Plack::Middleware::Auth::OAuth
 
+0.05    Wed Jan 16 05:35:00 2012
+        - add validate only feature
+        - add unauthorized_cb feature
+        - assign $env->{"psgix.oauth_authorized"} when validating
+
 0.04    Thu Oct 18 05:56:12 2012
         - assign psgix.oauth_realm and psgix.oauth_params into $env
 
