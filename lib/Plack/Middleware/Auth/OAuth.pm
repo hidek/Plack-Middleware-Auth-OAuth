@@ -13,6 +13,7 @@ use Plack::Util::Accessor qw(
     check_timestamp_cb
     check_nonce_cb
     unauthorized_cb
+    validate_only
 );
 
 use OAuth::Lite::Util qw(parse_auth_header);
@@ -35,7 +36,7 @@ sub prepare_app {
 sub call {
     my ($self, $env) = @_;
 
-    return $self->validate($env) ? $self->app->($env) : $self->unauthorized($env);
+    return ($self->validate($env) || $self->validate_only) ? $self->app->($env) : $self->unauthorized($env);
 }
 
 sub validate {
