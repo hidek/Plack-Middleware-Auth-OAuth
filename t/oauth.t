@@ -6,6 +6,7 @@ use Plack::Test;
 use Plack::Builder;
 use HTTP::Request::Common;
 use OAuth::Lite::Consumer;
+use JSON;
 
 my %args = (
     consumer_key    => 'abc',
@@ -31,23 +32,26 @@ my $consumer = OAuth::Lite::Consumer->new(
     _timestamp      => $args{timestamp},
 );
 
-{
-    my $app = sub {
-        my $env = shift;
-        ok defined $env->{'psgix.oauth_realm'};
-        ok $env->{'psgix.oauth_params'};
-        is $env->{'psgix.oauth_params'}{oauth_consumer_key}, $params{oauth_consumer_key};
 
-        ok $env->{'psgix.oauth_authorized'};
-        return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
-    };
+my $json = JSON->new->utf8;
+my $app_base = sub {
+    my $env = shift;
 
-    $app = builder {
+    my %hash =
+        map  {($_ => $env->{$_})}
+        grep {/^psgix\.oauth/}
+        keys %{$env};
+
+    return [200, ['Content-Type' => 'text/plain'], [$json->encode(\%hash)]];
+};
+
+subtest normal => sub {
+    my $app = builder {
         enable 'Plack::Middleware::Auth::OAuth',
             'consumer_key'    => $args{consumer_key},
             'consumer_secret' => $args{consumer_secret},
             ;
-        $app;
+        $app_base;
     };
 
     test_psgi $app, sub {
@@ -63,23 +67,25 @@ my $consumer = OAuth::Lite::Consumer->new(
         );
         $res = $cb->($req);
         is $res->code,    200;
-        is $res->content, "Hello World";
-    };
-}
+        my $env = $json->decode($res->content);
 
-{
-    my $app = sub {
-        return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
-    };
+        ok defined $env->{'psgix.oauth_realm'};
+        ok $env->{'psgix.oauth_params'};
+        is $env->{'psgix.oauth_params'}{oauth_consumer_key}, $params{oauth_consumer_key};
 
-    $app = builder {
+        ok $env->{'psgix.oauth_authorized'};
+    };
+};
+
+subtest check_nonce_cb => sub {
+    my $app = builder {
         enable 'Plack::Middleware::Auth::OAuth',
             'consumer_key'    => $args{consumer_key},
             'consumer_secret' => $args{consumer_secret},
             'check_nonce_cb'  => sub {
-            return shift->{oauth_nonce} eq 'nonce' ? 1 : 0;
+                return shift->{oauth_nonce} eq 'nonce' ? 1 : 0;
             };
-        $app;
+        $app_base;
     };
 
     test_psgi $app, sub {
@@ -92,21 +98,17 @@ my $consumer = OAuth::Lite::Consumer->new(
         my $res = $cb->($req);
         is $res->code,    200;
     };
-}
+};
 
-{
-    my $app = sub {
-        return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
-    };
-
-    $app = builder {
+subtest check_nonce_cb_error => sub {
+    my $app = builder {
         enable 'Plack::Middleware::Auth::OAuth',
             'consumer_key'    => $args{consumer_key},
             'consumer_secret' => $args{consumer_secret},
             'check_nonce_cb'  => sub {
                 return shift->{oauth_timestamp} ne 12345 ? 1 : 0;
             };
-        $app;
+        $app_base;
     };
 
     test_psgi $app, sub {
@@ -119,14 +121,10 @@ my $consumer = OAuth::Lite::Consumer->new(
         my $res = $cb->($req);
         is $res->code,    401;
     };
-}
+};
 
-{
-    my $app = sub {
-        return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
-    };
-
-    $app = builder {
+subtest unauthorized_cb => sub {
+    my $app = builder {
         enable 'Plack::Middleware::Auth::OAuth',
             consumer_key    => $args{consumer_key},
             consumer_secret => $args{consumer_secret},
@@ -144,7 +142,7 @@ my $consumer = OAuth::Lite::Consumer->new(
                 ];
             },
         ;
-        $app;
+        $app_base;
     };
 
     test_psgi $app, sub {
@@ -154,22 +152,16 @@ my $consumer = OAuth::Lite::Consumer->new(
         is $res->code, 403;
         is $res->content, 'forbidden';
     };
-}
+};
 
-{
-    my $app = sub {
-        my $env = shift;
-        ok !$env->{'psgix.oauth_authorized'};
-        return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
-    };
-
-    $app = builder {
+subtest validate_only => sub {
+    my $app = builder {
         enable 'Plack::Middleware::Auth::OAuth',
             consumer_key    => $args{consumer_key},
             consumer_secret => $args{consumer_secret},
             validate_only   => 1,
         ;
-        $app;
+        $app_base;
     };
 
     test_psgi $app, sub {
@@ -177,36 +169,24 @@ my $consumer = OAuth::Lite::Consumer->new(
         my $res = $cb->(GET 'http://localhost/');
 
         is $res->code, 200;
-        is $res->content, 'Hello World';
-    };
-}
-
-{
-    my $app = sub {
-        my $env = shift;
-        ok $env->{'psgix.oauth_authorized'};
-        return [200, ['Content-Type' => 'text/plain'], ['Hello World']];
-    };
-
-    $app = builder {
-        enable 'Plack::Middleware::Auth::OAuth',
-            consumer_key    => $args{consumer_key},
-            consumer_secret => $args{consumer_secret},
-            validate_only   => 1,
-        ;
-        $app;
+        my $env = $json->decode($res->content);
+        ok !$env->{'psgix.oauth_authorized'};
     };
 
     test_psgi $app, sub {
         my $cb  = shift;
+        my $res = $cb->(GET 'http://localhost/');
+
         my $req = $consumer->gen_oauth_request(
             method => 'GET',
             url    => 'http://localhost/',
             params => \%params,
         );
         my $res = $cb->($req);
+        my $env = $json->decode($res->content);
+        ok $env->{'psgix.oauth_authorized'};
         is $res->code,    200;
     };
-}
+};
 
 done_testing;
