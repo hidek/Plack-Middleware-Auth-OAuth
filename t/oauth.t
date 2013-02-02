@@ -6,7 +6,9 @@ use Plack::Test;
 use Plack::Builder;
 use HTTP::Request::Common;
 use OAuth::Lite::Consumer;
-use JSON;
+use Data::Dumper;
+local $Data::Dumper::Terse  = 1;
+local $Data::Dumper::Purity = 1;
 
 my %args = (
     consumer_key    => 'abc',
@@ -33,16 +35,15 @@ my $consumer = OAuth::Lite::Consumer->new(
 );
 
 
-my $json = JSON->new->utf8;
 my $app_base = sub {
     my $env = shift;
 
-    my %hash =
+    my %env_sub =
         map  {($_ => $env->{$_})}
         grep {/^psgix\.oauth/}
         keys %{$env};
 
-    return [200, ['Content-Type' => 'text/plain'], [$json->encode(\%hash)]];
+    return [200, ['Content-Type' => 'text/plain'], [Dumper \%env_sub]];
 };
 
 subtest normal => sub {
@@ -67,13 +68,13 @@ subtest normal => sub {
         );
         $res = $cb->($req);
         is $res->code,    200;
-        my $env = $json->decode($res->content);
+        my $env_sub = eval $res->content;
 
-        ok defined $env->{'psgix.oauth_realm'};
-        ok $env->{'psgix.oauth_params'};
-        is $env->{'psgix.oauth_params'}{oauth_consumer_key}, $params{oauth_consumer_key};
+        ok defined $env_sub->{'psgix.oauth_realm'};
+        ok $env_sub->{'psgix.oauth_params'};
+        is $env_sub->{'psgix.oauth_params'}{oauth_consumer_key}, $params{oauth_consumer_key};
 
-        ok $env->{'psgix.oauth_authorized'};
+        ok $env_sub->{'psgix.oauth_authorized'};
     };
 };
 
@@ -129,8 +130,8 @@ subtest unauthorized_cb => sub {
             consumer_key    => $args{consumer_key},
             consumer_secret => $args{consumer_secret},
             unauthorized_cb => sub {
-                my $env = shift;
-                isa_ok $env, 'HASH';
+                my $env_sub = shift;
+                isa_ok $env_sub, 'HASH';
                 my $body = 'forbidden';
                 return [
                     403,
@@ -169,22 +170,20 @@ subtest validate_only => sub {
         my $res = $cb->(GET 'http://localhost/');
 
         is $res->code, 200;
-        my $env = $json->decode($res->content);
-        ok !$env->{'psgix.oauth_authorized'};
+        my $env_sub = eval $res->content;
+        ok !$env_sub->{'psgix.oauth_authorized'};
     };
 
     test_psgi $app, sub {
         my $cb  = shift;
-        my $res = $cb->(GET 'http://localhost/');
-
         my $req = $consumer->gen_oauth_request(
             method => 'GET',
             url    => 'http://localhost/',
             params => \%params,
         );
         my $res = $cb->($req);
-        my $env = $json->decode($res->content);
-        ok $env->{'psgix.oauth_authorized'};
+        my $env_sub = eval $res->content;
+        ok $env_sub->{'psgix.oauth_authorized'};
         is $res->code,    200;
     };
 };
