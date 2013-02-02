@@ -3,7 +3,7 @@ use warnings;
 
 use Test::More;
 use Plack::Test;
-use Plack::Builder;
+use Plack::Middleware::Auth::OAuth;
 use HTTP::Request::Common;
 use OAuth::Lite::Consumer;
 use Data::Dumper;
@@ -80,13 +80,10 @@ my $app_base = sub {
 };
 
 subtest normal => sub {
-    my $app = builder {
-        enable 'Plack::Middleware::Auth::OAuth',
-            'consumer_secret'   => $public_key,
-            'consumer_key'      => $args{consumer_key},
-            ;
-        $app_base;
-    };
+    my $app = Plack::Middleware::Auth::OAuth->wrap($app_base,
+        consumer_secret => $public_key,
+        consumer_key    => $args{consumer_key},
+    );
 
     test_psgi $app, sub {
         my $cb = shift;
@@ -111,13 +108,10 @@ subtest normal => sub {
 };
 
 subtest invalid => sub {
-    my $app = builder {
-        enable 'Plack::Middleware::Auth::OAuth',
-            'consumer_secret'   => $invalid_public_key,
-            'consumer_key'      => $args{consumer_key},
-            ;
-        $app_base;
-    };
+    my $app = Plack::Middleware::Auth::OAuth->wrap($app_base,
+        consumer_secret => $invalid_public_key,
+        consumer_key    => $args{consumer_key},
+    );
 
     test_psgi $app, sub {
         my $cb = shift;

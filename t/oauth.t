@@ -3,7 +3,7 @@ use warnings;
 
 use Test::More;
 use Plack::Test;
-use Plack::Builder;
+use Plack::Middleware::Auth::OAuth;
 use HTTP::Request::Common;
 use OAuth::Lite::Consumer;
 use Data::Dumper;
@@ -47,13 +47,10 @@ my $app_base = sub {
 };
 
 subtest normal => sub {
-    my $app = builder {
-        enable 'Plack::Middleware::Auth::OAuth',
-            'consumer_key'    => $args{consumer_key},
-            'consumer_secret' => $args{consumer_secret},
-            ;
-        $app_base;
-    };
+    my $app = Plack::Middleware::Auth::OAuth->wrap($app_base,
+        consumer_key    => $args{consumer_key},
+        consumer_secret => $args{consumer_secret},
+    );
 
     test_psgi $app, sub {
         my $cb = shift;
@@ -79,15 +76,13 @@ subtest normal => sub {
 };
 
 subtest check_nonce_cb => sub {
-    my $app = builder {
-        enable 'Plack::Middleware::Auth::OAuth',
-            'consumer_key'    => $args{consumer_key},
-            'consumer_secret' => $args{consumer_secret},
-            'check_nonce_cb'  => sub {
-                return shift->{oauth_nonce} eq 'nonce' ? 1 : 0;
-            };
-        $app_base;
-    };
+    my $app = Plack::Middleware::Auth::OAuth->wrap($app_base,
+        consumer_key    => $args{consumer_key},
+        consumer_secret => $args{consumer_secret},
+        check_nonce_cb  => sub {
+            return shift->{oauth_nonce} eq 'nonce' ? 1 : 0;
+        },
+    );
 
     test_psgi $app, sub {
         my $cb  = shift;
@@ -102,15 +97,13 @@ subtest check_nonce_cb => sub {
 };
 
 subtest check_nonce_cb_error => sub {
-    my $app = builder {
-        enable 'Plack::Middleware::Auth::OAuth',
-            'consumer_key'    => $args{consumer_key},
-            'consumer_secret' => $args{consumer_secret},
-            'check_nonce_cb'  => sub {
-                return shift->{oauth_timestamp} ne 12345 ? 1 : 0;
-            };
-        $app_base;
-    };
+    my $app = Plack::Middleware::Auth::OAuth->wrap($app_base,
+        consumer_key    => $args{consumer_key},
+        consumer_secret => $args{consumer_secret},
+        check_nonce_cb  => sub {
+            return shift->{oauth_timestamp} ne 12345 ? 1 : 0;
+        },
+    );
 
     test_psgi $app, sub {
         my $cb  = shift;
@@ -125,26 +118,23 @@ subtest check_nonce_cb_error => sub {
 };
 
 subtest unauthorized_cb => sub {
-    my $app = builder {
-        enable 'Plack::Middleware::Auth::OAuth',
-            consumer_key    => $args{consumer_key},
-            consumer_secret => $args{consumer_secret},
-            unauthorized_cb => sub {
-                my $env_sub = shift;
-                isa_ok $env_sub, 'HASH';
-                my $body = 'forbidden';
-                return [
-                    403,
-                    [
-                        'Content-Type'    => 'text/plain',
-                        'Content-Lentgth' => length $body,
-                    ],
-                    [$body],
-                ];
-            },
-        ;
-        $app_base;
-    };
+    my $app = Plack::Middleware::Auth::OAuth->wrap($app_base,
+        consumer_key    => $args{consumer_key},
+        consumer_secret => $args{consumer_secret},
+        unauthorized_cb => sub {
+            my $env_sub = shift;
+            isa_ok $env_sub, 'HASH';
+            my $body = 'forbidden';
+            return [
+                403,
+                [
+                    'Content-Type'    => 'text/plain',
+                    'Content-Lentgth' => length $body,
+                ],
+                [$body],
+            ];
+        },
+    );
 
     test_psgi $app, sub {
         my $cb  = shift;
@@ -156,14 +146,11 @@ subtest unauthorized_cb => sub {
 };
 
 subtest validate_only => sub {
-    my $app = builder {
-        enable 'Plack::Middleware::Auth::OAuth',
-            consumer_key    => $args{consumer_key},
-            consumer_secret => $args{consumer_secret},
-            validate_only   => 1,
-        ;
-        $app_base;
-    };
+    my $app = Plack::Middleware::Auth::OAuth->wrap($app_base,
+        consumer_key    => $args{consumer_key},
+        consumer_secret => $args{consumer_secret},
+        validate_only   => 1,
+    );
 
     test_psgi $app, sub {
         my $cb  = shift;
