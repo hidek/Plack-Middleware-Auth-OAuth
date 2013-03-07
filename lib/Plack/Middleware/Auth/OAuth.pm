@@ -170,7 +170,7 @@ A callback function for resolving consumer_secret. This callback takes argument:
 
 Default: 0
 
-if true, it judge unsupported param as invalid when validating params.
+if true, it judge unsupported parameter as invalid when validating parameters.
 if false, it accepts unsupported parameters.
 
 =back
