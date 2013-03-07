@@ -14,6 +14,8 @@ use Plack::Util::Accessor qw(
     check_nonce_cb
     unauthorized_cb
     validate_only
+    secret_resolver_cb
+    strict
 );
 
 use OAuth::Lite::Util qw(parse_auth_header);
@@ -22,10 +24,12 @@ use OAuth::Lite::ServerUtil;
 sub prepare_app {
     my $self = shift;
 
-    die 'requires consumer_key'    unless $self->consumer_key;
-    die 'requires consumer_secret' unless $self->consumer_secret;
+    if (!$self->secret_resolver_cb) {
+        die 'requires consumer_key'    unless $self->consumer_key;
+        die 'requires consumer_secret' unless $self->consumer_secret;
+    }
 
-    for my $cb_method (qw/check_nonce_cb check_timestamp_cb unauthorized_cb/) {
+    for my $cb_method (qw/check_nonce_cb check_timestamp_cb unauthorized_cb secret_resolver_cb/) {
         if ($self->$cb_method && ref $self->$cb_method ne 'CODE') {
             die "$cb_method should be a code reference";
         }
@@ -48,7 +52,13 @@ sub validate {
     $env->{'psgix.oauth_realm'}  = $realm;
     $env->{'psgix.oauth_params'} = $params;
 
-    return unless $params->{oauth_consumer_key} eq $self->consumer_key;
+    my $consumer_secret = $self->consumer_secret;
+    if ($self->secret_resolver_cb) {
+        $consumer_secret = $self->secret_resolver_cb->($params->{oauth_consumer_key}, $env);
+    }
+    else {
+        return unless $params->{oauth_consumer_key} eq $self->consumer_key;
+    }
 
     return if $self->check_timestamp_cb && !$self->check_timestamp_cb->($params);
     return if $self->check_nonce_cb && !$self->check_nonce_cb->($params);
@@ -60,7 +70,7 @@ sub validate {
         $params->{$k} = [$req_params->get_all($k)];
     }
 
-    my $util = OAuth::Lite::ServerUtil->new(strict => 0);
+    my $util = OAuth::Lite::ServerUtil->new(strict => $self->strict || 0);
     $util->support_signature_method($params->{oauth_signature_method});
     return unless $util->validate_params($params);
 
@@ -68,7 +78,7 @@ sub validate {
         method          => $req->method,
         url             => $req->uri,
         params          => $params,
-        consumer_secret => $self->consumer_secret,
+        consumer_secret => $consumer_secret,
         token_secret    => $params->{oauth_token_secret},
     );
 }
@@ -151,6 +161,17 @@ A callback function (psgi application) for returning custom response when unauth
 doing only validation. not returning response directly from middleware (unauthorized method not to be called).
 
 discriminating authorization is valid or not by seeing $env->{'psgix.oauth_authorized'} in your app.
+
+=item secret_resolver_cb
+
+A callback function for resolving consumer_secret. This callback takes argument: ($consumer_key, $env).
+
+=item strict
+
+Default: 0
+
+if true, it judge unsupported param as invalid when validating params.
+if false, it accepts unsupported parameters.
 
 =back
 

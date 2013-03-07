@@ -175,4 +175,57 @@ subtest validate_only => sub {
     };
 };
 
+subtest secret_resolver_cb => sub {
+    my $app = Plack::Middleware::Auth::OAuth->wrap($app_base,
+        secret_resolver_cb => sub {
+            my $key = shift;
+            $key eq $args{consumer_key} ? $args{consumer_secret} : 'hogeeeee';
+        },
+    );
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $res = $cb->(GET 'http://localhost/');
+
+        is $res->code, 401;
+    };
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $req = $consumer->gen_oauth_request(
+            method => 'GET',
+            url    => 'http://localhost/',
+            params => \%params,
+        );
+        my $res = $cb->($req);
+        my $env_sub = eval $res->content;
+        ok $env_sub->{'psgix.oauth_authorized'};
+        is $res->code,    200;
+    };
+
+
+    my $consumer2 = OAuth::Lite::Consumer->new(
+        consumer_key    => $args{consumer_key},
+        consumer_secret => 'falsefalse',
+        realm           => $args{realm},
+        _nonce          => $args{nonce},
+        _timestamp      => $args{timestamp},
+    );
+
+    test_psgi $app, sub {
+        my $cb  = shift;
+        my $req = $consumer2->gen_oauth_request(
+            method => 'GET',
+            url    => 'http://localhost/',
+            params => {
+                %params,
+            },
+        );
+        my $res = $cb->($req);
+        my $env_sub = eval $res->content;
+        is $res->code,    401;
+    };
+
+};
+
 done_testing;
